@@ -992,8 +992,14 @@ fn parse_hysteria2_uri(line: &str) -> Result<ProxyNode, String> {
 
 fn parse_tuic_uri(line: &str) -> Result<ProxyNode, String> {
     let url = Url::parse(line).map_err(|e| format!("tuic url: {e}"))?;
-    let uuid = percent_decode(url.username());
-    let password = url.password().map(percent_decode).unwrap_or_default();
+    let username = percent_decode(url.username());
+    let (uuid, password) = match url.password() {
+        Some(password) => (username, percent_decode(password)),
+        None => match username.split_once(':') {
+            Some((uuid, password)) => (uuid.to_string(), password.to_string()),
+            None => (username, String::new()),
+        },
+    };
     if uuid.is_empty() {
         return Err("tuic: missing uuid".into());
     }
